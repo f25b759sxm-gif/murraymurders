@@ -9,381 +9,365 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
-/* ── RESET ── */
 * { margin: 0; padding: 0; box-sizing: border-box; }
-html, body {
-  width: 100%;
-  overflow-x: hidden;
-  -webkit-text-size-adjust: 100%;
-}
+html, body { width: 100%; overflow-x: hidden; -webkit-text-size-adjust: 100%; }
 
+/* ══════════════════════════════════════
+   DESKTOP: full-screen map, overlay card
+   ══════════════════════════════════════ */
 body {
   font-family: 'Inter', sans-serif;
   background: #0d1117;
   height: 100vh;
   overflow: hidden;
 }
+#map { width: 100%; height: 100vh; }
 
-#map {
-  width: 100%;
-  height: 100vh;
-}
-
-/* ── INFO CARD ── */
-.map-card {
+/* Card split into two halves that JS welds together on desktop */
+.card-hdr,
+.card-body {
   position: absolute;
-  top: 20px;
   left: 20px;
   z-index: 1000;
+  width: 260px;
   background: rgba(255,255,255,0.97);
   backdrop-filter: blur(8px);
-  border-radius: 4px;
-  padding: 22px 24px 18px;
-  width: 260px;
   box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+}
+.card-hdr {
+  top: 20px;
   border-top: 3px solid #dd1f26;
+  border-radius: 4px 4px 0 0;
+  padding: 22px 24px 0;
+}
+.card-body {
+  border-radius: 0 0 4px 4px;
+  padding: 0 24px 14px;
 }
 
+/* ── Header content ── */
 .card-eyebrow {
-  font-family: 'Inter', sans-serif;
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 2.5px;
-  text-transform: uppercase;
-  color: #dd1f26;
-  margin-bottom: 8px;
+  font-size: 9px; font-weight: 600; letter-spacing: 2.5px;
+  text-transform: uppercase; color: #dd1f26; margin-bottom: 8px;
 }
-
 .card-title {
   font-family: 'Playfair Display', serif;
-  font-size: 22px;
-  font-weight: 700;
-  color: #1a1a1a;
-  line-height: 1.25;
-  margin-bottom: 4px;
+  font-size: 22px; font-weight: 700; color: #1a1a1a;
+  line-height: 1.25; margin-bottom: 4px;
 }
-
 .card-subtitle {
   font-family: 'Playfair Display', serif;
-  font-style: italic;
-  font-size: 13px;
-  color: #666;
-  margin-bottom: 16px;
+  font-style: italic; font-size: 13px; color: #666; margin-bottom: 16px;
 }
-
 .card-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 12px;
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;
   padding: 14px 0 16px;
-  border-top: 1px solid #eee;
-  border-bottom: 1px solid #eee;
+  border-top: 1px solid #eee; border-bottom: 1px solid #eee;
   margin-bottom: 16px;
 }
-
 .stat-item { text-align: center; }
+.stat-value { display: block; font-size: 18px; font-weight: 600; color: #1a1a1a; line-height: 1.1; }
+.stat-label { display: block; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: #999; margin-top: 2px; }
 
-.stat-value {
-  display: block;
-  font-size: 18px;
-  font-weight: 600;
-  color: #1a1a1a;
-  line-height: 1.1;
+/* ── Timeline ── */
+.timeline {
+  padding-bottom: 18px;
+}
+.tl-heading {
+  font-size: 7.5px; font-weight: 600; letter-spacing: 1.5px;
+  text-transform: uppercase; color: #bbb; margin-bottom: 9px;
+}
+.tl-track {
+  position: relative;
+  height: 2px;
+  background: #eee;
+  margin: 0 3px 7px;
+}
+.tl-fill {
+  position: absolute;
+  inset: 0;
+  background: #dd1f26;
+}
+.tl-dot {
+  position: absolute;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #dd1f26;
+  top: -2.5px;
+}
+.tl-dot.s { left: -3px; }
+.tl-dot.e { right: -3px; }
+.tl-dates {
+  display: flex;
+  justify-content: space-between;
+}
+.tl-date {
+  font-size: 9px; font-weight: 500; color: #777;
 }
 
-.stat-label {
-  display: block;
-  font-size: 9px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: #999;
-  margin-top: 2px;
-}
-
+/* ── Waypoint list ── */
 .atm-list {
-  max-height: 260px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #ddd transparent;
+  max-height: 200px; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: #ddd transparent;
 }
 .atm-list::-webkit-scrollbar { width: 3px; }
 .atm-list::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
-
 .atm-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 5px 4px;
-  cursor: pointer;
-  border-radius: 3px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 5px 4px; cursor: pointer; border-radius: 3px;
   transition: background 0.15s;
 }
 .atm-item:hover { background: #f5f5f5; }
 .atm-item.active { background: #fff0ed; }
-
 .atm-num {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #1B2A4A;
-  color: white;
-  font-size: 9px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: background 0.2s;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: #1B2A4A; color: white;
+  font-size: 9px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: background 0.2s;
 }
 .atm-item.active .atm-num { background: #dd1f26; }
+.atm-name { font-size: 11px; color: #333; line-height: 1.3; }
 
-.atm-name {
-  font-size: 11px;
-  color: #333;
-  font-weight: 400;
-  line-height: 1.3;
+/* ── Graphic credit ── */
+.graphic-credit {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid #f0f0f0;
+  font-size: 8.5px;
+  color: #bbb;
+  letter-spacing: 0.3px;
 }
-
-/* ── POPUP ── */
-.leaflet-popup-content-wrapper {
-  border-radius: 4px;
-  box-shadow: 0 6px 24px rgba(0,0,0,0.15);
-  border: none;
-  max-width: 280px;
-}
-.leaflet-popup-content { margin: 0; padding: 0; }
-
-.popup-inner { padding: 16px 18px 14px; }
-
-.popup-title {
-  font-family: 'Playfair Display', serif;
-  font-size: 16px;
-  font-weight: 700;
-  color: #1a1a1a;
-  margin-bottom: 8px;
-  line-height: 1.3;
-}
-.popup-desc { font-size: 11.5px; color: #555; line-height: 1.6; }
-.leaflet-popup-tip-container { margin-top: -1px; }
-
-/* ── MARKERS ── */
-.marker-pin {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: #1B2A4A;
-  border: 2.5px solid white;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 10px;
+.graphic-credit strong {
+  color: #999;
   font-weight: 600;
-  font-family: 'Inter', sans-serif;
-  cursor: pointer;
+}
+
+/* ── Popup ── */
+.leaflet-popup-content-wrapper { border-radius: 4px; box-shadow: 0 6px 24px rgba(0,0,0,0.15); max-width: 280px; }
+.leaflet-popup-content { margin: 0; padding: 0; }
+.popup-inner { padding: 16px 18px 14px; }
+.popup-title { font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 700; color: #1a1a1a; margin-bottom: 8px; line-height: 1.3; }
+.popup-desc { font-size: 11.5px; color: #555; line-height: 1.6; }
+
+/* ── Markers ── */
+.marker-pin {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: #1B2A4A; border: 2.5px solid white;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 10px; font-weight: 600;
+  font-family: 'Inter', sans-serif; cursor: pointer;
   transition: transform 0.2s, background 0.2s;
 }
 .marker-pin:hover { transform: scale(1.2); }
-.marker-pin.active {
-  background: #dd1f26;
-  transform: scale(1.2);
-  box-shadow: 0 3px 10px rgba(221,31,38,0.4);
-}
+.marker-pin.active { background: #dd1f26; transform: scale(1.2); box-shadow: 0 3px 10px rgba(221,31,38,0.4); }
 
-/* ── RESET BTN (desktop) ── */
+/* ── Reset btn (desktop: floating) ── */
 .reset-btn {
-  position: absolute;
-  bottom: 28px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1000;
-  background: white;
-  border: none;
-  padding: 9px 20px;
-  font-family: 'Inter', sans-serif;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: #444;
-  border-radius: 3px;
-  cursor: pointer;
+  position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
+  z-index: 1000; background: white; border: none;
+  padding: 9px 20px; font-family: 'Inter', sans-serif;
+  font-size: 11px; font-weight: 500; letter-spacing: 1px;
+  text-transform: uppercase; color: #444;
+  border-radius: 3px; cursor: pointer;
   box-shadow: 0 2px 12px rgba(0,0,0,0.15);
-  transition: all 0.2s;
-  white-space: nowrap;
+  transition: all 0.2s; white-space: nowrap;
 }
 .reset-btn:hover { background: #1B2A4A; color: white; }
+.leaflet-control-attribution { font-size: 9px !important; }
 
-.leaflet-control-attribution {
-  font-size: 9px;
-  background: rgba(255,255,255,0.7) !important;
-}
+/* ══════════════════════════════════════
+   MOBILE: stacked document flow
+   Order: [headline + stats + timeline] → [map] → [waypoints + credit] → [reset]
+   ══════════════════════════════════════ */
+@media (max-width: 640px) {
+  body { height: auto; overflow-y: auto; overflow-x: hidden; background: #fff; }
+  #map { height: 62vw; min-height: 210px; position: relative; z-index: 1; }
 
-/* ── MOBILE ── */
-@media (max-width: 480px) {
-  /* Allow the page to scroll on mobile */
-  body {
-    height: auto;
-    overflow: visible;
-    background: #fff;
-  }
-
-  /* Map becomes a fixed-height band, not full-screen */
-  #map {
-    height: 65vw;
-    min-height: 220px;
-  }
-
-  /* Card drops out of the absolute overlay and flows below the map */
-  .map-card {
+  .card-hdr,
+  .card-body {
     position: relative;
-    top: auto;
+    top: auto !important;
     left: auto;
     width: 100%;
     border-radius: 0;
     box-shadow: none;
-    border-top: 3px solid #dd1f26;
-    border-bottom: 1px solid #eee;
-    padding: 14px 14px 12px;
     backdrop-filter: none;
     background: #fff;
   }
 
-  .card-title { font-size: 18px; }
-  .card-subtitle { font-size: 12px; margin-bottom: 12px; }
+  /* Header: sits above the map */
+  .card-hdr {
+    border-top: 3px solid #dd1f26;
+    border-bottom: 1px solid #ede9e3;
+    padding: 12px 14px 0;
+  }
+  .card-title { font-size: 17px; }
+  .card-subtitle { font-size: 11.5px; margin-bottom: 10px; }
+  .card-stats { padding: 10px 0 10px; margin-bottom: 10px; border-bottom: none; gap: 6px; }
 
-  /* Stats span full width */
-  .card-stats {
-    padding: 12px 0 12px;
-    margin-bottom: 12px;
-    gap: 8px;
+  /* Timeline on mobile */
+  .timeline { padding-bottom: 12px; }
+
+  /* Body (waypoints + credit): sits below the map */
+  .card-body {
+    padding: 0 14px 12px;
+    border-top: 1px solid #ede9e3;
+    border-bottom: 1px solid #ede9e3;
   }
 
-  /* List shows all items; user can scroll the page */
-  .atm-list { max-height: none; overflow-y: visible; }
-
-  /* Reset button flows below the card, full-width */
-  .reset-btn {
-    position: relative;
-    bottom: auto;
-    left: auto;
-    transform: none;
-    width: 100%;
+  /* Two-column grid for the waypoint list */
+  .atm-list {
+    max-height: none;
+    overflow-y: visible;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding-top: 4px;
+  }
+  .atm-item {
+    padding: 8px 6px;
+    border-right: 1px solid #f2efe9;
+    border-bottom: 1px solid #f2efe9;
     border-radius: 0;
-    box-shadow: none;
-    padding: 12px 20px;
-    border-top: 1px solid #eee;
-    text-align: center;
-    display: block;
   }
+  .atm-item:nth-child(2n) { border-right: none; }
+  .atm-name { font-size: 11px; }
+
+  /* Credit on mobile */
+  .graphic-credit { margin-top: 12px; padding-top: 10px; }
+
+  /* Reset: flows at very bottom */
+  .reset-btn {
+    position: relative; bottom: auto; left: auto; transform: none;
+    display: block; width: 100%; border-radius: 0; box-shadow: none;
+    border: none; padding: 13px 20px; text-align: center;
+    background: #fafafa; color: #555;
+  }
+  .reset-btn:hover { background: #1B2A4A; color: white; }
 }
 </style>
 </head>
 <body>
 
-<div id="map"></div>
-
-<div class="map-card">
+<!-- ① Headline + stats + timeline — above the map on mobile -->
+<div class="card-hdr" id="cardHdr">
   <div class="card-eyebrow">The Murray Murders</div>
   <div class="card-title">Money flows possibly<br>linked to hit</div>
   <div class="card-subtitle">Estimated R628 500 in cash withdrawals</div>
   <div class="card-stats">
-    <div class="stat-item">
-      <span class="stat-value">27</span>
-      <span class="stat-label">ATM sites visited</span>
+    <div class="stat-item"><span class="stat-value">27</span><span class="stat-label">ATM sites visited</span></div>
+    <div class="stat-item"><span class="stat-value">71</span><span class="stat-label">times</span></div>
+    <div class="stat-item"><span class="stat-value">145</span><span class="stat-label">separate withdrawals</span></div>
+  </div>
+  <div class="timeline">
+    <div class="tl-heading">Withdrawal period</div>
+    <div class="tl-track">
+      <div class="tl-fill"></div>
+      <div class="tl-dot s"></div>
+      <div class="tl-dot e"></div>
     </div>
-    <div class="stat-item">
-      <span class="stat-value">71</span>
-      <span class="stat-label">times</span>
-    </div>
-    <div class="stat-item">
-      <span class="stat-value">145</span>
-      <span class="stat-label">separate withdrawals</span>
+    <div class="tl-dates">
+      <span class="tl-date">9 Dec 2022</span>
+      <span class="tl-date">5 Oct 2023</span>
     </div>
   </div>
-  <div class="atm-list" id="atmList"></div>
 </div>
 
+<!-- ② Map -->
+<div id="map"></div>
+
+<!-- ③ Waypoint list + credit — below the map on mobile -->
+<div class="card-body" id="cardBody">
+  <div class="atm-list" id="atmList"></div>
+  <div class="graphic-credit"><strong>Graphic:</strong> [Sharlene Rood / Andrew Thompson · News24]</div>
+</div>
+
+<!-- ④ Reset -->
 <button class="reset-btn" onclick="resetView()">↔ All transactions</button>
 
 <script>
-const atms = [{"num": 1, "name": "Celtis Ridge Shopping Centre", "lat": -25.875909058510672, "lon": 28.112738177631986, "desc": "Number of visits: 1<br> Number of withdrawals: 2<br> Amount: <strong>R10 000</strong>"}, {"num": 2, "name": "Mall at Reds", "lat": -25.871750, "lon": 28.136785, "desc": "Number of visits: 20<br> Number of withdrawals: 45<br> Amount: <strong>R198 000</strong>"}, {"num": 3, "name": "Also - Sasol Rooihuiskraal", "lat": -25.870692, "lon": 28.139222, "desc": "Number of visits: <br> Number of withdrawals: <br> Amount: <strong>R?</strong>"}, {"num": 4, "name": "Engen Raslouw", "lat": -25.857564, "lon": 28.109194, "desc": "Number of visits: 3<br> Number of withdrawals: 9<br> Amount: <strong>R39 000</strong>"}, {"num": 5, "name": "BP Eldo Glen", "lat": -25.834807, "lon": 28.136263, "desc": "Number of visits: 1<br> Number of withdrawals: 2<br> Amount: <strong>R3 000</strong>"}, {"num": 6, "name": "Eldoraigne Village", "lat": -25.841312668299455, "lon": 28.160346393558545, "desc": "Number of visits: 3<br> Number of withdrawals: 6<br> Amount: <strong>R27 000</strong>"}, {"num": 7, "name": "Groenkloof", "lat": -25.771993, "lon": 28.215280, "desc": "Number of visits: 5<br> Number of withdrawals: 8<br> Amount: <strong>R38 000</strong>"}, {"num": 8, "name": "Brooklyn Mall", "lat": -25.771152638904567, "lon": 28.234817691434614, "desc": "Number of visits: 12<br> Number of withdrawals: 24<br> Amount: <strong>R109 100</strong>"}, {"num": 9, "name": "Waterkloof Corner", "lat": -25.77475030095933, "lon": 28.240661034509717,"desc": "Number of visits: 4<br> Number of withdrawals: 9<br> Amount: <strong>R26 150</strong>"}, {"num": 10, "name": "BP Kyalami", "lat": -25.989060906568778, "lon": 28.07612899715962, "desc": "Number of visits: 3<br> Number of withdrawals: 7<br> Amount: <strong>R30 000</strong>"}, {"num": 11, "name": " BP Melrose Arch", "lat": -26.129377, "lon": 28.069853, "desc": "Number of visits: 4<br> Number of withdrawals: 8<br> Amount: <strong>R27 000</strong>"}, {"num": 12, "name": "Engen Oxford Road", "lat": -26.14886571831291, "lon": 28.0451394037946, "desc": "Number of visits: 1<br> Number of withdrawals: 1<br> Amount: <strong>R5 000</strong>"}, {"num": 13, "name": "Nelson Mandela Square", "lat": -26.107274198435963, "lon": 28.054503517705392, "desc": "Number of visits: 2<br> Number of withdrawals: 2<br> Amount: <strong>R9 050</strong>"}, {"num": 14, "name": "The Glen", "lat": -26.268573427331706, "lon": 28.049312916617723, "desc": "Number of visits: 2<br> Number of withdrawals: 5<br> Amount: <strong>R19 100</strong>"}, {"num": 15, "name": "Sasol Circle Center", "lat": -25.88743938611722, "lon": 28.106139615301366, "desc": "Number of visits: 1<br> Number of withdrawals: 1<br> Amount: <strong>R5 000</strong>"}];
+const atms = [
+  {"num":1,"name":"Celtis Ridge Shopping Centre","lat":-25.875909058510672,"lon":28.112738177631986,"desc":"Number of visits: 1<br>Number of withdrawals: 2<br>Amount: <strong>R10 000</strong>"},
+  {"num":2,"name":"Mall at Reds","lat":-25.871750,"lon":28.136785,"desc":"Number of visits: 20<br>Number of withdrawals: 45<br>Amount: <strong>R198 000</strong>"},
+  {"num":3,"name":"Sasol Rooihuiskraal","lat":-25.870692,"lon":28.139222,"desc":"Number of visits: 2<br>Number of withdrawals: 9<br>Amount: <strong>R32 000</strong>"},
+  {"num":4,"name":"Engen Raslouw","lat":-25.857564,"lon":28.109194,"desc":"Number of visits: 3<br>Number of withdrawals: 9<br>Amount: <strong>R39 000</strong>"},
+  {"num":5,"name":"BP Eldo Glen","lat":-25.834807,"lon":28.136263,"desc":"Number of visits: 1<br>Number of withdrawals: 1<br>Amount: <strong>R3 000</strong>"},
+  {"num":6,"name":"Eldoraigne Village","lat":-25.841312668299455,"lon":28.160346393558545,"desc":"Number of visits: 3<br>Number of withdrawals: 6<br>Amount: <strong>R27 000</strong>"},
+  {"num":7,"name":"Groenkloof","lat":-25.771993,"lon":28.215280,"desc":"Number of visits: 5<br>Number of withdrawals: 8<br>Amount: <strong>R38 000</strong>"},
+  {"num":8,"name":"Brooklyn Mall","lat":-25.771152638904567,"lon":28.234817691434614,"desc":"Number of visits: 12<br>Number of withdrawals: 24<br>Amount: <strong>R109 100</strong>"},
+  {"num":9,"name":"Waterkloof Corner","lat":-25.77475030095933,"lon":28.240661034509717,"desc":"Number of visits: 4<br>Number of withdrawals: 9<br>Amount: <strong>R26 150</strong>"},
+  {"num":10,"name":"BP Kyalami","lat":-25.989060906568778,"lon":28.07612899715962,"desc":"Number of visits: 3<br>Number of withdrawals: 7<br>Amount: <strong>R30 000</strong>"},
+  {"num":11,"name":"BP Melrose Arch","lat":-26.129377,"lon":28.069853,"desc":"Number of visits: 4<br>Number of withdrawals: 8<br>Amount: <strong>R27 000</strong>"},
+  {"num":12,"name":"Engen Oxford Road","lat":-26.14886571831291,"lon":28.0451394037946,"desc":"Number of visits: 1<br>Number of withdrawals: 1<br>Amount: <strong>R5 000</strong>"},
+  {"num":13,"name":"Nelson Mandela Square","lat":-26.107274198435963,"lon":28.054503517705392,"desc":"Number of visits: 2<br>Number of withdrawals: 2<br>Amount: <strong>R9 050</strong>"},
+  {"num":14,"name":"The Glen","lat":-26.268573427331706,"lon":28.049312916617723,"desc":"Number of visits: 2<br>Number of withdrawals: 5<br>Amount: <strong>R19 100</strong>"},
+  {"num":15,"name":"Sasol Circle Center","lat":-25.88743938611722,"lon":28.106139615301366,"desc":"Number of visits: 1<br>Number of withdrawals: 1<br>Amount: <strong>R5 000</strong>"}
+];
 
 const PTJ_BOUNDS = [[-26.288573, 28.025139], [-25.751153, 28.260661]];
-
-const map = L.map('map', {
-  zoomControl: false,
-  attributionControl: true
-});
-
+const map = L.map('map', { zoomControl: false, attributionControl: true });
 L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
-  subdomains: 'abcd',
-  maxZoom: 19
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
+  subdomains: 'abcd', maxZoom: 19
 }).addTo(map);
-
 L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-var activeATM = null;
-var markers = {};
+function positionCardBody() {
+  var hdr = document.getElementById('cardHdr');
+  var body = document.getElementById('cardBody');
+  if (window.innerWidth > 640) {
+    body.style.top = (hdr.offsetTop + hdr.offsetHeight) + 'px';
+    body.style.left = '20px';
+  } else {
+    body.style.top = '';
+    body.style.left = '';
+  }
+}
+window.addEventListener('resize', positionCardBody);
 
+var activeATM = null, markers = {};
 atms.forEach(function(atm) {
   var icon = L.divIcon({
     className: '',
     html: '<div class="marker-pin" id="pin' + atm.num + '">' + atm.num + '</div>',
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-    popupAnchor: [0, -18]
+    iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -18]
   });
-
   var popup = L.popup({ maxWidth: 280, closeButton: true }).setContent(
-    '<div class="popup-inner">' +
-    '<div class="popup-title">' + atm.name + '</div>' +
-    '<div class="popup-desc">' + atm.desc + '</div>' +
-    '</div>'
+    '<div class="popup-inner"><div class="popup-title">' + atm.name + '</div>' +
+    '<div class="popup-desc">' + atm.desc + '</div></div>'
   );
-
   var marker = L.marker([atm.lat, atm.lon], { icon: icon }).addTo(map).bindPopup(popup);
   marker.on('click', function() { flyToATM(atm.lat, atm.lon, atm.num); });
   markers[atm.num] = marker;
 });
 
-var listElement = document.getElementById('atmList');
+var listEl = document.getElementById('atmList');
 atms.forEach(function(atm) {
   var item = document.createElement('div');
-  item.className = 'atm-item';
-  item.id = 'item' + atm.num;
+  item.className = 'atm-item'; item.id = 'item' + atm.num;
   item.innerHTML = '<div class="atm-num">' + atm.num + '</div><div class="atm-name">' + atm.name + '</div>';
   item.onclick = function() { flyToATM(atm.lat, atm.lon, atm.num); };
-  listElement.appendChild(item);
+  listEl.appendChild(item);
 });
 
-function flyToATM(lat, lon, atmNumber) {
+function flyToATM(lat, lon, n) {
   if (activeATM !== null) {
-    var oldPin = document.getElementById('pin' + activeATM);
-    if (oldPin) oldPin.classList.remove('active');
-    var oldItem = document.getElementById('item' + activeATM);
-    if (oldItem) oldItem.classList.remove('active');
+    var op = document.getElementById('pin' + activeATM); if (op) op.classList.remove('active');
+    var oi = document.getElementById('item' + activeATM); if (oi) oi.classList.remove('active');
   }
-  activeATM = atmNumber;
-  var newPin = document.getElementById('pin' + atmNumber);
-  if (newPin) newPin.classList.add('active');
-  var newItem = document.getElementById('item' + atmNumber);
-  if (newItem) {
-    newItem.classList.add('active');
-    newItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }
+  activeATM = n;
+  var np = document.getElementById('pin' + n); if (np) np.classList.add('active');
+  var ni = document.getElementById('item' + n);
+  if (ni) { ni.classList.add('active'); ni.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
   map.flyTo([lat, lon], 15, { duration: 0.9 });
-  setTimeout(function() { markers[atmNumber].openPopup(); }, 950);
+  setTimeout(function() { markers[n].openPopup(); }, 950);
 }
 
 function resetView() {
   if (activeATM !== null) {
-    var oldPin = document.getElementById('pin' + activeATM);
-    if (oldPin) oldPin.classList.remove('active');
-    var oldItem = document.getElementById('item' + activeATM);
-    if (oldItem) oldItem.classList.remove('active');
+    var op = document.getElementById('pin' + activeATM); if (op) op.classList.remove('active');
+    var oi = document.getElementById('item' + activeATM); if (oi) oi.classList.remove('active');
     activeATM = null;
   }
   map.closePopup();
@@ -393,6 +377,7 @@ function resetView() {
 setTimeout(function() {
   map.invalidateSize();
   map.fitBounds(PTJ_BOUNDS, { padding: [60, 60] });
+  positionCardBody();
 }, 300);
 </script>
 </body>
